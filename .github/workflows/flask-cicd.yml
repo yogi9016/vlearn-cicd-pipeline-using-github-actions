@@ -22,15 +22,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Test SSH connectivity
-        uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USERNAME }}
-          key: ${{ secrets.SERVER_SSH_KEY }}
-          port: 22
-          script: echo "SSH works!"
-          
       - name: copy files to EC2
         uses: appleboy/scp-action@v1
         with:
@@ -70,7 +61,11 @@ jobs:
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: 22
           script: |
-            set -e
+            APP_DIR=/home/ubuntu/vlearn-cicd-pipeline-using-github-actions
+            DOCKER_IMAGE=flask-cicd-actions:latest
+            CONTAINER_NAME=cicd-actions-container
+            APP_PORT=5001
+
             cd $APP_DIR
             echo "Building Docker image..."
             sudo docker build -t $DOCKER_IMAGE .
@@ -89,7 +84,7 @@ jobs:
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: 22
           script: |
-            set -e
+            APP_DIR=/home/ubuntu/vlearn-cicd-pipeline-using-github-actions
             echo "Copying NGINX config..."
             sudo cp $APP_DIR/nginx.conf /etc/nginx/conf.d/app.conf
             sudo rm -f /etc/nginx/sites-enabled/default /etc/nginx/sites-available/default
