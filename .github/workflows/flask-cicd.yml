@@ -9,11 +9,11 @@ on:
 env:
   APP_NAME: flask-cicd-demo
   APP_DIR: /home/ubuntu/vlearn-cicd-pipeline-using-jenkins
-  GIT_REPO: https://github.com/yogi9016/vlearn-cicd-pipeline-using-jenkins.git
+  GIT_REPO: https://github.com/yogi9016/vlearn-cicd-pipeline-using-github-actions.git
   GIT_BRANCH: main
-  DOCKER_IMAGE: flask-cicd-demo:latest
-  CONTAINER_NAME: flask-cicd-container
-  APP_PORT: 5000
+  DOCKER_IMAGE: flask-cicd-actions:latest
+  CONTAINER_NAME: cicd-actions-container
+  APP_PORT: 5001
   REMOTE_USER: ubuntu
   REMOTE_HOST: 35.182.252.169
 
