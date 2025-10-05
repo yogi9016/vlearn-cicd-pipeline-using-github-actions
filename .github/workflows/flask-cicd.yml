@@ -98,9 +98,10 @@ jobs:
       - name: Health Check
         run: |
           echo "Performing health check..."
-          STATUS_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://${{ secrets.SERVER_HOST }})
+          STATUS_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://${{ secrets.SERVER_HOST }}:${{ env.APP_PORT }})
           if [ "$STATUS_CODE" -eq 200 ]; then
             echo "✅ Health Check Passed!"
           else
             echo "❌ Health Check Failed! HTTP $STATUS_CODE"
             exit 1
+          fi
