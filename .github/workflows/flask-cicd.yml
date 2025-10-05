@@ -30,7 +30,7 @@ jobs:
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: 22
           source: ./
-          target: /home/ubuntu
+          target: /home/ubuntu/vlearn-cicd-pipeline-using-github-actions
 
       - name: Check and install dependencies on EC2
         uses: appleboy/ssh-action@v1.0.3
@@ -86,7 +86,7 @@ jobs:
           script: |
             APP_DIR=/home/ubuntu/vlearn-cicd-pipeline-using-github-actions
             echo "Copying NGINX config..."
-            sudo cp -f $APP_DIR/nginx.conf /etc/nginx/conf.d/app.conf
+            sudo cp -f /home/ubuntu/vlearn-cicd-pipeline-using-github-actions/nginx.conf /etc/nginx/conf.d/app.conf
             sudo rm -f /etc/nginx/sites-enabled/default /etc/nginx/sites-available/default
 
             echo "Testing NGINX configuration..."
