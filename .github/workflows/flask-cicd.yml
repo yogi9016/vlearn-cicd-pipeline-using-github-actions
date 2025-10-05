@@ -1,0 +1,108 @@
+name: Flask CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch: # allow manual trigger
+
+env:
+  APP_NAME: flask-cicd-demo
+  APP_DIR: /home/ubuntu/vlearn-cicd-pipeline-using-jenkins
+  GIT_REPO: https://github.com/yogi9016/vlearn-cicd-pipeline-using-jenkins.git
+  GIT_BRANCH: main
+  DOCKER_IMAGE: flask-cicd-demo:latest
+  CONTAINER_NAME: flask-cicd-container
+  APP_PORT: 5000
+  REMOTE_USER: ubuntu
+  REMOTE_HOST: 35.182.252.169
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up SSH access
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SERVER_SSH_KEY }}
+
+      - name: Install dependencies on remote
+        run: |
+          ssh -o StrictHostKeyChecking=no $REMOTE_USER@$REMOTE_HOST << 'EOF'
+            set -e
+            echo "Checking dependencies..."
+            for pkg in docker.io nginx git; do
+              if ! command -v $pkg &>/dev/null; then
+                echo "$pkg not found. Installing..."
+                sudo apt-get update && sudo apt-get install -y $pkg
+              else
+                echo "$pkg already installed."
+              fi
+            done
+          EOF
+
+      - name: Checkout code on remote
+        run: |
+          ssh -o StrictHostKeyChecking=no $REMOTE_USER@$REMOTE_HOST << 'EOF'
+            set -e
+            if [ -d "$APP_DIR" ]; then
+              echo "Repository exists, pulling latest changes..."
+              cd $APP_DIR && git reset --hard && git pull origin $GIT_BRANCH
+            else
+              echo "Cloning repository..."
+              git clone -b $GIT_BRANCH $GIT_REPO $APP_DIR
+            fi
+          EOF
+
+      - name: Build and run Docker container
+        run: |
+          ssh -o StrictHostKeyChecking=no $REMOTE_USER@$REMOTE_HOST << 'EOF'
+            set -e
+            cd $APP_DIR
+            echo "Building Docker image..."
+            sudo docker build -t $DOCKER_IMAGE .
+            
+            echo "Stopping old container if exists..."
+            sudo docker rm -f $CONTAINER_NAME || true
+            
+            echo "Running new container..."
+            sudo docker run -d --name $CONTAINER_NAME -p $APP_PORT:5000 $DOCKER_IMAGE
+          EOF
+
+      - name: Configure and restart NGINX
+        run: |
+          ssh -o StrictHostKeyChecking=no $REMOTE_USER@$REMOTE_HOST << 'EOF'
+            set -e
+            echo "Copying NGINX config..."
+            sudo cp $APP_DIR/nginx.conf /etc/nginx/conf.d/app.conf
+            sudo rm -f /etc/nginx/sites-enabled/default /etc/nginx/sites-available/default
+            
+            echo "Testing NGINX configuration..."
+            sudo nginx -t
+            
+            echo "Restarting NGINX..."
+            sudo systemctl restart nginx
+          EOF
+
+      - name: Health Check
+        run: |
+          echo "Performing health check..."
+          STATUS_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://$REMOTE_HOST)
+          if [ "$STATUS_CODE" -eq 200 ]; then
+            echo "✅ Health Check Passed!"
+          else
+            echo "❌ Health Check Failed! HTTP $STATUS_CODE"
+            exit 1
+          fi
+
+      - name: Send success notification (optional)
+        if: success()
+        run: echo "✅ Deployment successful for $APP_NAME on $REMOTE_HOST"
+
+      - name: Send failure notification (optional)
+        if: failure()
+        run: echo "❌ Deployment failed for $APP_NAME on $REMOTE_HOST"
